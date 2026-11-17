@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kelime Kelime Şarkı</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, sans-serif;
+    background: #05070d; color: #cfd8dc;
+    min-height: 100vh; padding: 14px; display: flex; flex-direction: column; gap: 12px;
+  }
+  h2 { margin: 0; font-size: 16px; color: #888; }
+  textarea {
+    width: 100%; height: 90px; border-radius: 10px; border: 1px solid #1d3b2a;
+    padding: 10px; font-size: 15px; background: #0b1119; color: #cfd8dc; resize: vertical;
+  }
+  .satir { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    border: 1px solid #1d3b2a; border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; background: #0b1119; color: #b8ff6b; cursor: pointer;
+  }
+  button:active { transform: scale(0.97); }
+
+  .sahne {
+    background: #03060a; border: 1px solid #1d3b2a; border-radius: 14px;
+    padding: 12px; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 0 24px rgba(184,255,107,0.08) inset;
+  }
+  #dalga { width: 100%; height: 80px; display: block; }
+  .ana { display: flex; align-items: center; gap: 12px; }
+  #kafaSvg { width: 48%; max-width: 200px; flex-shrink: 0; }
+  .olcu {
+    font-family: monospace; color: #b8ff6b; font-size: 13px; line-height: 1.9;
+    text-shadow: 0 0 6px rgba(184,255,107,0.5);
+  }
+  #gosterim {
+    font-family: monospace; font-size: 38px; font-weight: 700; color: #b8ff6b;
+    text-shadow: 0 0 14px rgba(184,255,107,0.7); text-align: center;
+    min-height: 56px; word-break: break-word;
+  }
+  .vur { animation: vur .3s ease-out; }
+  @keyframes vur {
+    0% { transform: scale(1.3); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  #sayac { font-family: monospace; color: #557; text-align: center; font-size: 12px; }
+  #spek { width: 100%; height: 50px; display: block; }
+
+  #sonraki {
+    width: 100%; padding: 24px; font-size: 20px; font-weight: 700;
+    background: #b8ff6b; color: #05070d; border: none; border-radius: 16px;
+  }
+  #bilgi { font-size: 12px; color: #557; word-break: break-word; font-family: monospace; }
+</style>
+</head>
+<body>
+
+<h2>Şarkı sözlerini yapıştır</h2>
+<textarea id="sozler" placeholder="Şarkı sözlerini buraya yapıştır..."></textarea>
+
+<div class="satir">
+  <button id="hazirla">Sözleri Hazırla</button>
+  <button id="muzikSec">Müzik Seç</button>
+  <button id="calDurdur">▶ Çal</button>
+  <button id="sonrakiParca">⏭ Parça</button>
+</div>
+<input type="file" id="dosya" accept="audio/*" multiple hidden>
+<div id="bilgi">Yükleniyor...</div>
+
+<div class="sahne">
+  <canvas id="dalga" width="600" height="160"></canvas>
+
+  <div class="ana">
+    <svg id="kafaSvg" viewBox="0 0 200 240">
+      <defs>
+        <filter id="parilti"><feGaussianBlur stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <g fill="none" stroke="#4fd1ff" stroke-width="1.6" filter="url(#parilti)">
+        <path d="M70 30 C110 0 170 20 170 80 C170 120 160 130 165 150 L150 160 C155 175 150 190 135 200 L125 205 C120 225 100 235 80 230 C60 225 55 205 62 190 L40 130 C30 100 40 40 70 30 Z"/>
+        <path d="M70 60 C100 50 130 60 140 90" opacity=".5"/>
+        <path d="M60 120 C90 110 120 120 150 140" opacity=".5"/>
+        <path d="M70 160 C90 150 120 155 140 170" opacity=".5"/>
+      </g>
+      <circle id="agiz" cx="150" cy="172" r="6" fill="#ff6ad5" opacity=".7" filter="url(#parilti)"/>
+    </svg>
+    <div class="olcu">
+      SES &nbsp;<span id="v_ses">0</span><br>
+      BAS &nbsp;<span id="v_bas">0.00</span><br>
+      ORTA <span id="v_orta">0.00</span><br>
+      TİZ &nbsp;<span id="v_tiz">0.00</span>
+    </div>
+  </div>
+
+  <div id="gosterim">—</div>
+  <div id="sayac">0 / 0</div>
+  <canvas id="spek" width="600" height="100"></canvas>
+</div>
+
+<button id="sonraki">SONRAKİ KELİME ▶</button>
+<div class="satir">
+  <button id="onceki">◀ Önceki</button>
+  <button id="basa">↺ Başa Dön</button>
+</div>
+
+<audio id="ses" preload="auto"></audio>
+
+<script>
+  const REPO_SARKI = "MODEL - Ölürüm Daha İyi(_zDe4b5l5oek_).m4a";
+
+  const $ = id => document.getElementById(id);
+  const sozlerEl = $("sozler"), gosterimEl = $("gosterim"), sayacEl = $("sayac");
+  const bilgiEl = $("bilgi"), calBtn = $("calDurdur"), ses = $("ses"), dosya = $("dosya");
+  const dalgaC = $("dalga").getContext("2d"), spekC = $("spek").getContext("2d");
+  const agiz = $("agiz");
+
+  let kelimeler = [], idx = 0;
+  let liste = [], parca = 0;
+
+  // ---------- Ses analizi (dalga, spektrum, kafa) ----------
+  let actx = null, analyser = null, zamanVeri = null, frekVeri = null;
+
+  function analizBaslat() {
+    try {
+      if (!actx) {
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        const kaynak = actx.createMediaElementSource(ses);
+        analyser = actx.createAnalyser();
+        analyser.fftSize = 1024;
+        kaynak.connect(analyser);
+        analyser.connect(actx.destination);
+        zamanVeri = new Uint8Array(analyser.fftSize);
+        frekVeri = new Uint8Array(analyser.frequencyBinCount);
+        animasyon();
+      }
+      if (actx.state === "suspended") actx.resume();
+    } catch (e) { /* analiz desteklenmiyorsa sadece ses çalar */ }
+  }
+
+  function bantOrtalama(bas, son) {
+    let t = 0;
+    for (let i = bas; i < son; i++) t += frekVeri[i];
+    return (t / (son - bas)) / 255;
+  }
+
+  function animasyon() {
+    requestAnimationFrame(animasyon);
+    if (!analyser) return;
+
+    analyser.getByteTimeDomainData(zamanVeri);
+    analyser.getByteFrequencyData(frekVeri);
+
+    // Dalga
+    const w = dalgaC.canvas.width, h = dalgaC.canvas.height;
+    dalgaC.clearRect(0, 0, w, h);
+    dalgaC.lineWidth = 2;
+    dalgaC.strokeStyle = "#b8ff6b";
+    dalgaC.shadowColor = "#b8ff6b"; dalgaC.shadowBlur = 8;
+    dalgaC.beginPath();
+    for (let i = 0; i < zamanVeri.length; i++) {
+      const x = (i / zamanVeri.length) * w;
+      const y = (zamanVeri[i] / 255) * h;
+      i === 0 ? dalgaC.moveTo(x, y) : dalgaC.lineTo(x, y);
+    }
+    dalgaC.stroke();
+
+    // Spektrum çubukları
+    const sw = spekC.canvas.width, sh = spekC.canvas.height;
+    spekC.clearRect(0, 0, sw, sh);
+    const cubuk = 64, genislik = sw / cubuk;
+    for (let i = 0; i < cubuk; i++) {
+      const deger = frekVeri[i * 2] / 255;
+      const yuk = deger * sh;
+      spekC.fillStyle = `hsl(${90 + deger * 60}, 100%, 60%)`;
+      spekC.fillRect(i * genislik + 1, sh - yuk, genislik - 2, yuk);
+    }
+
+    // Kafa ve sayılar
+    let rms = 0;
+    for (let i = 0; i < zamanVeri.length; i++) {
+      const x = (zamanVeri[i] - 128) / 128;
+      rms += x * x;
+    }
+    rms = Math.sqrt(rms / zamanVeri.length);
+    agiz.setAttribute("r", (5 + rms * 40).toFixed(1));
+
+    const bas = bantOrtalama(1, 8), orta = bantOrtalama(8, 40), tiz = bantOrtalama(40, 120);
+    $("v_ses").textContent = Math.round(rms * 200);
+    $("v_bas").textContent = bas.toFixed(2);
+    $("v_orta").textContent = orta.toFixed(2);
+    $("v_tiz").textContent = tiz.toFixed(2);
+  }
+
+  // ---------- Kelime bölümü ----------
+  function kelimeGoster(kelime) {
+    gosterimEl.textContent = kelime;
+    gosterimEl.classList.remove("vur");
+    void gosterimEl.offsetWidth; // animasyonu yeniden başlat
+    gosterimEl.classList.add("vur");
+    sayacEl.textContent = `${idx} / ${kelimeler.length}`;
+  }
+
+  function seslendir(kelime) {
+    if (!("speechSynthesis" in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(kelime);
+    u.lang = "tr-TR";
+    u.rate = 0.9;
+    ses.volume = 0.2;
+    u.onend = () => { ses.volume = 1; };
+    u.onerror = () => { ses.volume = 1; };
+    speechSynthesis.speak(u);
+  }
+
+  $("hazirla").onclick = () => {
+    kelimeler = sozlerEl.value.trim().split(/\s+/).filter(Boolean);
+    idx = 0;
+    gosterimEl.textContent = "—";
+    sayacEl.textContent = `0 / ${kelimeler.length}`;
+  };
+
+  $("sonraki").onclick = () => {
+    if (kelimeler.length === 0) {
+      $("hazirla").click();
+      if (kelimeler.length === 0) return;
+    }
+    if (idx >= kelimeler.length) {
+      gosterimEl.textContent = "Bitti ✓";
+      return;
+    }
+    const kelime = kelimeler[idx];
+    idx++;
+    kelimeGoster(kelime);
+    seslendir(kelime);
+  };
+
+  $("onceki").onclick = () => {
+    if (idx > 1) {
+      idx -= 2;
+      $("sonraki").click();
+    } else {
+      $("basa").click();
+    }
+  };
+
+  $("basa").onclick = () => {
+    idx = 0;
+    gosterimEl.textContent = "—";
+    sayacEl.textContent = `0 / ${kelimeler.length}`;
+  };
+
+  // ---------- Müzik bölümü ----------
+  function parcaYukle(i, otomatikBaslat = true) {
+    if (liste.length === 0) return;
+    parca = (i + liste.length) % liste.length;
+    ses.src = liste[parca].url;
+    bilgiEl.textContent = `${parca + 1}/${liste.length}: ${liste[parca].name}`;
+    if (otomatikBaslat) {
+      analizBaslat();
+      ses.play().catch(() => {});
+      calBtn.textContent = "❚❚ Durdur";
+    } else {
+      calBtn.textContent = "▶ Çal";
+    }
+  }
+
+  liste = [{ name: REPO_SARKI, url: encodeURI(REPO_SARKI) }];
+  parcaYukle(0, false);
+
+  ses.onerror = () => {
+    bilgiEl.textContent = "Şarkı yüklenemedi. Dosya adı repoda tam olarak aynı mı kontrol edin.";
+  };
+
+  $("muzikSec").onclick = () => dosya.click();
+
+  dosya.onchange = () => {
+    const secilen = Array.from(dosya.files);
+    if (secilen.length === 0) return;
+    liste = secilen.map(f => ({ name: f.name, url: URL.createObjectURL(f) }));
+    parcaYukle(0);
+  };
+
+  ses.onended = () => parcaYukle(parca + 1);
+  $("sonrakiParca").onclick = () => parcaYukle(parca + 1);
+
+  calBtn.onclick = () => {
+    if (ses.paused) {
+      analizBaslat();
+      ses.play().catch(() => alert("Şarkı çalınamadı. Sayfayı yenileyip tekrar deneyin."));
+      calBtn.textContent = "❚❚ Durdur";
+    } else {
+      ses.pause();
+      calBtn.textContent = "▶ Çal";
+    }
+  };
+</script>
+</body>
+</html>
